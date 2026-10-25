@@ -368,12 +368,13 @@ class ZhihuCrawler(AbstractCrawler):
 
         """
         get_note_detail_task_list = []
+        semaphore = asyncio.Semaphore(config.MAX_CONCURRENCY_NUM)
         for full_note_url in config.ZHIHU_SPECIFIED_ID_LIST:
             # remove query params
             full_note_url = full_note_url.split("?")[0]
             crawler_task = self.get_note_detail(
                 full_note_url=full_note_url,
-                semaphore=asyncio.Semaphore(config.MAX_CONCURRENCY_NUM),
+                semaphore=semaphore,
             )
             get_note_detail_task_list.append(crawler_task)
 

@@ -24,7 +24,7 @@
 # 创作者个人档案表（XhsCreator/DyCreator/WeiboCreator/TiebaCreator/
 # ZhihuCreator/BilibiliUpInfo/BilibiliContactInfo）已整体移除。
 
-from sqlalchemy import create_engine, Column, Integer, Text, String, BigInteger
+from sqlalchemy import create_engine, Column, Integer, Text, String, BigInteger, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -271,14 +271,27 @@ class ZhihuContent(Base):
     content_id = Column(String(64), index=True, comment='内容ID')
     content_type = Column(Text, comment='内容类型')
     content_text = Column(Text, comment='内容文本')
+    content_html = Column(Text, comment='回答原始HTML')
     content_url = Column(Text, comment='内容URL')
     question_id = Column(String(255), comment='问题ID')
     title = Column(Text, comment='标题')
     desc = Column(Text, comment='描述')
     created_time = Column(String(32), index=True, comment='创建时间')
     updated_time = Column(Text, comment='更新时间')
-    voteup_count = Column(Integer, default=0, comment='赞同数')
-    comment_count = Column(Integer, default=0, comment='评论数')
+    voteup_count = Column(Integer, nullable=True, comment='赞同数，未知为NULL')
+    comment_count = Column(Integer, nullable=True, comment='评论数，未知为NULL')
+    favlists_count = Column(Integer, nullable=True, comment='回答收藏数')
+    like_count = Column(Integer, nullable=True, comment='回答喜欢数，与赞同数区分')
+    thanks_count = Column(Integer, nullable=True, comment='上游thanks计数，保留原义')
+    content_need_truncated = Column(Boolean, nullable=True, comment='上游截断标记')
+    question_title = Column(Text, comment='问题标题')
+    question_detail = Column(Text, comment='问题补充说明文本')
+    question_detail_html = Column(Text, comment='问题补充说明HTML，保留图片链接')
+    question_answer_count = Column(Integer, nullable=True, comment='问题回答数')
+    question_comment_count = Column(Integer, nullable=True, comment='问题评论数')
+    question_follower_count = Column(Integer, nullable=True, comment='问题关注数')
+    question_visit_count = Column(BigInteger, nullable=True, comment='问题浏览数')
+    question_voteup_count = Column(Integer, nullable=True, comment='好问题数')
     source_keyword = Column(Text, comment='来源关键词')
     creator_hash = Column(String(64), index=True, comment='创作者匿名哈希')
     user_nickname = Column(Text, comment='用户昵称(已脱敏)')

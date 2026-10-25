@@ -573,7 +573,9 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         """
         uri = f"/question/{question_id}/answer/{answer_id}"
         response_html = await self.get(uri, return_response=True)
-        return self._extractor.extract_answer_content_from_html(response_html)
+        return self._extractor.extract_answer_content_from_html(
+            response_html, answer_id=answer_id, question_id=question_id,
+        )
 
     async def get_article_info(self, article_id: str) -> Optional[ZhihuContent]:
         """

@@ -20,6 +20,7 @@
 
 # -*- coding: utf-8 -*-
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class ZhihuContent(BaseModel):
@@ -29,14 +30,27 @@ class ZhihuContent(BaseModel):
     content_id: str = Field(default="", description="Content ID")
     content_type: str = Field(default="", description="Content type (article | answer | zvideo)")
     content_text: str = Field(default="", description="Content text, empty for video type")
+    content_html: str = Field(default="", description="Original answer HTML, including image links")
     content_url: str = Field(default="", description="Content landing page URL")
     question_id: str = Field(default="", description="Question ID, has value when type is answer")
     title: str = Field(default="", description="Content title")
     desc: str = Field(default="", description="Content description")
-    created_time: int = Field(default=0, description="Create time")
-    updated_time: int = Field(default=0, description="Update time")
-    voteup_count: int = Field(default=0, description="Upvote count")
-    comment_count: int = Field(default=0, description="Comment count")
+    created_time: Optional[int] = Field(default=None, description="Create time; null when unavailable")
+    updated_time: Optional[int] = Field(default=None, description="Update time; null when unavailable")
+    voteup_count: Optional[int] = Field(default=None, description="Answer upvotes; null when unavailable")
+    comment_count: Optional[int] = Field(default=None, description="Answer comment count; null when unavailable")
+    favlists_count: Optional[int] = Field(default=None, description="Answer collections/favorites")
+    like_count: Optional[int] = Field(default=None, description="Answer heart/like count, separate from upvotes")
+    thanks_count: Optional[int] = Field(default=None, description="Upstream thanks count; not assumed equal to likes")
+    content_need_truncated: Optional[bool] = Field(default=None, description="Upstream content truncation flag")
+    question_title: Optional[str] = Field(default=None, description="Question title")
+    question_detail: Optional[str] = Field(default=None, description="Question detail text; not answer excerpt")
+    question_detail_html: Optional[str] = Field(default=None, description="Question detail HTML, including image links")
+    question_answer_count: Optional[int] = Field(default=None, description="Question answer count")
+    question_comment_count: Optional[int] = Field(default=None, description="Question comment count")
+    question_follower_count: Optional[int] = Field(default=None, description="Question follower count")
+    question_visit_count: Optional[int] = Field(default=None, description="Question view count")
+    question_voteup_count: Optional[int] = Field(default=None, description="Question good-question count")
     source_keyword: str = Field(default="", description="Source keyword")
     creator_hash: str = Field(default="", description="Creator anonymized hash")
     user_nickname: str = Field(default="", description="User nickname (masked)")

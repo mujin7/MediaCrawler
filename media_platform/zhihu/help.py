@@ -98,7 +98,25 @@ class ZhihuExtractor:
                 continue
         return res
 
-    def _extract_answer_content(self, answer: Dict) -> ZhihuContent:
+    @staticmethod
+    def _available(data: Dict, *keys):
+        """Support API snake_case and page-state camelCase without losing real zeros."""
+        for key in keys:
+            if data.get(key) is not None:
+                return data[key]
+        return None
+
+    @staticmethod
+    def _number(value) -> Optional[int]:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int) and value >= 0:
+            return value
+        if isinstance(value, str) and value.isascii() and value.isdigit():
+            return int(value)
+        return None
+
+    def _extract_answer_content(self, answer: Dict, question: Optional[Dict] = None) -> ZhihuContent:
         """
         extract zhihu answer content
         Args:
@@ -109,15 +127,50 @@ class ZhihuExtractor:
         res = ZhihuContent()
         res.content_id = str(answer.get("id") or "")
         res.content_type = answer.get("type")
-        res.content_text = extract_text_from_html(answer.get("content", ""))
-        res.question_id = str(answer.get("question", {}).get("id") or "")
+        res.content_html = answer.get("content") or ""
+        res.content_text = extract_text_from_html(res.content_html)
+        nested_question = answer.get("question")
+        q = dict(nested_question) if isinstance(nested_question, dict) else {}
+        if isinstance(nested_question, (str, int)):
+            q['id'] = str(nested_question)
+        if question:
+            q.update(question)
+        res.question_id = str(q.get("id") or "")
         res.content_url = f"{zhihu_constant.ZHIHU_URL}/question/{res.question_id}/answer/{res.content_id}"
-        res.title = extract_text_from_html(answer.get("title", ""))
+        title = q.get("title") or answer.get("title")
+        res.question_title = extract_text_from_html(title) if title is not None else None
+        res.title = res.question_title or ""
         res.desc = extract_text_from_html(answer.get("description", "") or answer.get("excerpt", ""))
-        res.created_time = answer.get("created_time")
-        res.updated_time = answer.get("updated_time")
-        res.voteup_count = answer.get("voteup_count", 0)
-        res.comment_count = answer.get("comment_count", 0)
+        get = self._available
+        number = self._number
+        res.created_time = number(get(answer, 'created_time', 'createdTime'))
+        res.updated_time = number(get(answer, 'updated_time', 'updatedTime'))
+        stats = (answer.get('reaction') or {}).get('statistics') or {}
+        for field, keys, stat_keys in [
+            ('voteup_count', ('voteup_count', 'voteupCount'), ('upVoteCount', 'up_vote_count')),
+            ('comment_count', ('comment_count', 'commentCount'), ('commentCount', 'comment_count')),
+            ('favlists_count', ('favlists_count', 'favlistsCount'), ('favorites',)),
+            ('like_count', ('like_count', 'likeCount'), ('likeCount', 'like_count')),
+        ]:
+            value = number(get(answer, *keys))
+            if value is None:
+                value = number(get(stats, *stat_keys))
+            setattr(res, field, value)
+        res.thanks_count = number(get(answer, 'thanks_count', 'thanksCount'))
+        truncated = get(answer, 'content_need_truncated', 'contentNeedTruncated')
+        res.content_need_truncated = truncated if isinstance(truncated, bool) else None
+        detail = q.get('detail')
+        if isinstance(detail, str):
+            res.question_detail_html = detail
+            res.question_detail = extract_text_from_html(detail)
+        for field, keys in [
+            ('question_answer_count', ('answer_count', 'answerCount')),
+            ('question_comment_count', ('comment_count', 'commentCount')),
+            ('question_follower_count', ('follower_count', 'followerCount')),
+            ('question_visit_count', ('visit_count', 'visitCount')),
+            ('question_voteup_count', ('voteup_count', 'voteupCount')),
+        ]:
+            setattr(res, field, number(get(q, *keys)))
 
         # extract author info
         author_info = self._extract_content_or_comment_author(answer.get("author"))
@@ -368,7 +421,10 @@ class ZhihuExtractor:
 
 
 
-    def extract_answer_content_from_html(self, html_content: str) -> Optional[ZhihuContent]:
+    def extract_answer_content_from_html(
+        self, html_content: str, answer_id: Optional[str] = None,
+        question_id: Optional[str] = None,
+    ) -> Optional[ZhihuContent]:
         """
         extract zhihu answer content from html
         Args:
@@ -381,11 +437,25 @@ class ZhihuExtractor:
         if not js_init_data:
             return None
         json_data: Dict = json.loads(js_init_data)
-        answer_info: Dict = json_data.get("initialState", {}).get("entities", {}).get("answers", {})
+        entities = json_data.get("initialState", {}).get("entities", {})
+        answer_info: Dict = entities.get("answers", {})
         if not answer_info:
             return None
 
-        return self._extract_answer_content(answer_info.get(list(answer_info.keys())[0]))
+        if answer_id is not None:
+            answer = answer_info.get(str(answer_id))
+            if not answer or str(answer.get('id')) != str(answer_id):
+                return None
+        elif len(answer_info) == 1:
+            answer = next(iter(answer_info.values()))
+        else:
+            raise ValueError('Multiple answers in page; expected answer_id is required')
+        nested = answer.get('question')
+        actual_qid = str(nested.get('id') or '') if isinstance(nested, dict) else str(nested or '')
+        if question_id is not None and actual_qid != str(question_id):
+            raise ValueError('Answer belongs to a different question')
+        question = entities.get('questions', {}).get(actual_qid)
+        return self._extract_answer_content(answer, question=question)
 
     def extract_article_content_from_html(self, html_content: str) -> Optional[ZhihuContent]:
         """
