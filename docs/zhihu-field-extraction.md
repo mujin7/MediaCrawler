@@ -37,11 +37,37 @@ meanings. Do not conflate them. A question with a known empty `detail` uses empt
 strings; unavailable details use null. Image links survive in the HTML fields;
 the corresponding text fields do not OCR image contents or download images.
 
-Validated against the saved HTML of the single original target (question
+Initially validated against the saved HTML of the single original target (question
 369788883, answer 1000001641): answer upvotes 342, comments 135, collections 22,
 likes 35; question title/detail and answer timestamps are present. This validation
-was offline after saving the already-open browser page. It does not claim a
-second end-to-end online crawl of the patched version.
+was offline after saving the already-open browser page.
+
+## Online validation, 2026-10-25
+
+After pushing code commit `68599ba2ef275795ecf87a4db6b78578a2f8cc09`, ten
+additional distinct answers from the existing task registry were validated online.
+One temporary browser session was used for login, then target answers were
+requested sequentially using the committed detail client, extractor, and store.
+Comment-content collection and target-request retries were disabled. A local
+audit wrapper recorded per-answer outcomes and retained response evidence.
+
+| Check | Result |
+|---|---:|
+| Target answers returning HTTP 200 | 10 / 10 |
+| Matching answer/question IDs and nonempty answer text saved | 10 / 10 |
+| Required question text, answer metrics, timestamps and truncation flag present | 10 / 10 |
+| Independently compared to saved raw page entities (20 fields per answer) | 10 / 10 |
+
+All answer upvote, comment, collection and heart/like values matched their raw
+page fields. Known empty question details were distinguished from unavailable
+details, and real zero counters were retained. Formula/image markup remained in
+the HTML fields. The startup search warm-up returned HTTP 403, but all ten target
+answer requests returned HTTP 200; no proxy or identity rotation was used.
+
+This is a small live regression sample, not an estimate that all historical
+answers remain available. Data, page snapshots and login information were not
+uploaded to the repository. Also repaired the detail task loop to share one
+semaphore so the configured concurrency limit applies across all detail tasks.
 
 JSON/JSONL/CSV include the extended model fields. The ORM schema is updated for
 **new** SQL tables and tested with a new in-memory SQLite database. Existing SQL
